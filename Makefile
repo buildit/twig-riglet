@@ -18,7 +18,7 @@ export AWS_REGION=${REGION}
 # These are created outside Terraform since it'll store sensitive contents!
 # When completely empty, can be destroyed with `make destroy-deps`
 deps:
-	@./scripts/setup-app-parameter-store.sh "${PROJECT}" "${ENV}"
+	@./scripts/setup-app-parameter-store.sh
 	@./cloudformation/scripts/create-buckets.sh
 
 # Destroy dependency S3 buckets, only destroy if empty
