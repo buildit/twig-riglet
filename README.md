@@ -1,6 +1,6 @@
 # AWS The Rig
 
-This setup will create a CloudFormation, GoCD powered Rig on AWS.
+This setup will create a CloudFormation, Jenkins powered Rig on AWS.
 
 ## Setup
 

@@ -18,6 +18,7 @@ export AWS_REGION=${REGION}
 # These are created outside Terraform since it'll store sensitive contents!
 # When completely empty, can be destroyed with `make destroy-deps`
 deps:
+	@./scripts/setup-app-parameter-store.sh "${PROJECT}" "${ENV}"
 	@./cloudformation/scripts/create-buckets.sh
 
 # Destroy dependency S3 buckets, only destroy if empty
@@ -82,7 +83,7 @@ create-app: upload-app
 			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
-			"ParameterKey=ParameterStoreNamespace,ParameterValue=/bookit/${ENV}" \
+			"ParameterKey=ParameterStoreNamespace,ParameterValue=/${PROJECT}/${ENV}" \
 			"ParameterKey=ServerRepository,ParameterValue=${OWNER}-${PROJECT}-server-ecr-repo" \
 			"ParameterKey=WebRepository,ParameterValue=${OWNER}-${PROJECT}-web-ecr-repo" \
 		--tags \
@@ -135,7 +136,7 @@ update-app: upload-app
 			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
-			"ParameterKey=ParameterStoreNamespace,ParameterValue=/bookit/${ENV}" \
+			"ParameterKey=ParameterStoreNamespace,ParameterValue=/${PROJECT}/${ENV}" \
 			"ParameterKey=ServerRepository,ParameterValue=${OWNER}-${PROJECT}-server-ecr-repo" \
             "ParameterKey=WebRepository,ParameterValue=${OWNER}-${PROJECT}-web-ecr-repo" \
 		--tags \
