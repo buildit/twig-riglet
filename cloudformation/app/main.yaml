@@ -92,52 +92,67 @@ Parameters:
     Type: String
 
   ServerRepository:
-    Description: Cluster repository name for bookit server
+    Description: Cluster repository name for backend server
     Type: String
 
   WebRepository:
-    Description: Cluster repository name for bookit web
+    Description: Cluster repository name for frontend web
     Type: String
 
 Resources:
-
-  ServerLoadBalancer:
+  LoadBalancer:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer.yaml
       Parameters:
-        AppStackName: !Sub ${AppStackName}-server
+        AppStackName: !Ref AppStackName
         FoundationStackName: !Ref FoundationStackName
-        DnsHostedZoneName: !Ref PublicDomainName
-        DnsSubdomainName: !Sub ${Environment}-bookit-server
 
-  WebLoadBalancer:
+  ServerListenerRule:
     Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - LoadBalancer
     Properties:
-      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer.yaml
+      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer-listener.yaml
       Parameters:
-        AppStackName: !Sub ${AppStackName}-web
+        AppStackName: !Ref AppStackName
         FoundationStackName: !Ref FoundationStackName
         DnsHostedZoneName: !Ref PublicDomainName
-        DnsSubdomainName: !Sub ${Environment}-bookit-web
+        DnsSubdomainName: !Sub ${Environment}-twig-api
+        InstancePort: 3000
+        ListenerRulePriority: 1
+
+  WebListenerRule:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - LoadBalancer
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer-listener.yaml
+      Parameters:
+        AppStackName: !Ref AppStackName
+        FoundationStackName: !Ref FoundationStackName
+        DnsHostedZoneName: !Ref PublicDomainName
+        DnsSubdomainName: !Sub ${Environment}-twig
+        InstancePort: 80
+        ListenerRulePriority: 2
 
   Cluster:
     DependsOn:
-      - ServerLoadBalancer
-      - WebLoadBalancer
+      - ServerListenerRule
+      - WebListenerRule
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/ecs-cluster.yaml
       Parameters:
         AppStackName: !Ref AppStackName
         FoundationStackName: !Ref FoundationStackName
-        ServerSourceSecurityGroup: !GetAtt ServerLoadBalancer.Outputs.SecurityGroup
-        WebSourceSecurityGroup: !GetAtt WebLoadBalancer.Outputs.SecurityGroup
+        ServerSourceSecurityGroup: !GetAtt LoadBalancer.Outputs.SecurityGroup
+        WebSourceSecurityGroup: !GetAtt LoadBalancer.Outputs.SecurityGroup
         InstanceType: !Ref EcsInstanceType
         ClusterSize: !Ref EcsClusterSize
         SshKeyName: !Ref SshKeyName
 
-  BookitServerService:
+  BackendServerService:
     DependsOn:
       - Cluster
     Type: AWS::CloudFormation::Stack
@@ -147,12 +162,12 @@ Resources:
         Tag: latest
         DesiredCount: 0
         Cluster: !GetAtt Cluster.Outputs.ClusterName
-        TargetGroup: !GetAtt ServerLoadBalancer.Outputs.TargetGroup
+        TargetGroup: !GetAtt ServerListenerRule.Outputs.TargetGroup
         Repository: !Ref ServerRepository
-        ContainerPort: 8888
+        ContainerPort: 3000
         ParameterStoreNamespace: !Ref ParameterStoreNamespace
 
-  BookitWebService:
+  FrontendWebService:
     DependsOn:
       - Cluster
     Type: AWS::CloudFormation::Stack
@@ -162,18 +177,12 @@ Resources:
         Tag: latest
         DesiredCount: 0
         Cluster: !GetAtt Cluster.Outputs.ClusterName
-        TargetGroup: !GetAtt WebLoadBalancer.Outputs.TargetGroup
+        TargetGroup: !GetAtt WebListenerRule.Outputs.TargetGroup
         Repository: !Ref WebRepository
         ContainerPort: 80
         ParameterStoreNamespace: !Ref ParameterStoreNamespace
-        BookitApiDomainName: !Sub https://${Environment}-bookit-server.${PublicDomainName}
 
 Outputs:
-
-  ServerLoadBalancerUrl:
+  LoadBalancerUrl:
     Description: URL of the load balancer for the sample service.
-    Value: !GetAtt ServerLoadBalancer.Outputs.ServiceUrl
-
-  WebLoadBalancerUrl:
-    Description: URL of the load balancer for the sample service.
-    Value: !GetAtt WebLoadBalancer.Outputs.ServiceUrl
+    Value: !GetAtt LoadBalancer.Outputs.ServiceUrl
