@@ -25,14 +25,6 @@ deps:
 destroy-deps:
 	@./cloudformation/scripts/destroy-buckets.sh
 
-# Create dependency ECR repositories
-create-repos:
-	@./cloudformation/scripts/create-ecr-repos.sh
-
-# Destroy ECR repositories, only destroy if empty
-destroy-repos:
-	@./cloudformation/scripts/destroy-ecr-repos.sh
-
 ## Create IAM user used for building the application
 create-build-user:
 	@./iam/create-build-user.sh "${OWNER}" "${PROJECT}"
@@ -60,6 +52,30 @@ create-foundation: upload-foundation
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=ProjectName,Value=${OWNER}-${PROJECT}-${ENV}"
+
+## Create new CF Build stack
+create-build: upload-build
+	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build" \
+                --region ${REGION} \
+                --disable-rollback \
+		--template-body "file://cloudformation/build/main.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameters \
+			"ParameterKey=BuildStackName,ParameterValue=${OWNER}-${PROJECT}-build" \
+			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
+			"ParameterKey=RepositoryName,ParameterValue=${REPO}" \
+			"ParameterKey=RepositoryBranch,ParameterValue=${REPO_BRANCH}" \
+			"ParameterKey=RepositoryAuthToken,ParameterValue=${REPO_TOKEN}" \
+			"ParameterKey=UserName,ParameterValue=${OWNER}" \
+			"ParameterKey=Region,ParameterValue=${REGION}" \
+			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
+			"ParameterKey=ParameterStoreNamespace,ParameterValue=/${PROJECT}/build" \
+		--tags \
+			"Key=Email,Value=${EMAIL}" \
+			"Key=Environment,Value=build" \
+			"Key=Owner,Value=${OWNER}" \
+			"Key=ProjectName,Value=${OWNER}-${PROJECT}-build"
 
 ## Create new CF App stack
 create-app: upload-app
@@ -159,6 +175,19 @@ outputs-foundation:
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
 		--query "Stacks[][Outputs] | []" | jq
 
+## Print Build stack's status
+status-build:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-build" \
+		--query "Stacks[][StackStatus] | []" | jq
+
+## Print build stack's outputs
+outputs-build:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-build" \
+		--query "Stacks[][Outputs] | []" | jq
 
 ## Print app stack's status
 status-app:
@@ -182,6 +211,12 @@ delete-foundation:
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"; \
 	fi
 
+## Deletes the Build CF stack
+delete-build:
+	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the Build Stack?"; then \
+		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-build"; \
+	fi
+
 ## Deletes the App CF stack
 delete-app:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the Project ${PROJECT} Stack?"; then \
@@ -193,6 +228,9 @@ delete-app:
 upload-foundation:
 	@aws s3 cp --recursive cloudformation/foundation/ s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.foundation/templates/
 
+# Uploads build templates to the Build bucket
+upload-build:
+	@aws s3 cp --recursive cloudformation/build/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build/templates/
 
 ## Upload CF Templates for project
 # Note that these templates will be stored in your InfraDev Project **shared** bucket:
