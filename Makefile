@@ -244,9 +244,10 @@ upload-app: upload-app-deployment
 	@aws s3 cp cloudformation/app/service.yaml s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app/templates/
 
 ## Upload app-deployment scripts to S3
-# Uploads the app-deployment scripts to the build bucket
+# Uploads the build support scripts to the build-support bucket.  These scripts can be used by external
+# build tools (Jenkins, Travis, etc.) to push images to ECR, deploy to ECS, etc.
 upload-app-deployment:
-	@aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.build/app-deployment/
+	@aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.build-support/app-deployment/
 
 
 check-env:

@@ -9,5 +9,5 @@ echo 'This script will remove empty the S3 buckets...'
 # Create confirmation etc:
 aws s3 rb s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.foundation
 aws s3 rb s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app
+aws s3 rb s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.build-support
 aws s3 rb s3://rig.${OWNER}.${PROJECT}.${REGION}.build
-aws s3 rb s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.build
